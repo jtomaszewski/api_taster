@@ -37,6 +37,7 @@ module ApiTaster
         route_set.routes.each do |route|
           next if route.app.is_a?(Sprockets::Environment)
           next if route.app == ApiTaster::Engine
+          next if route.defaults[:controller].to_s.starts_with?('rails/')
 
           rack_app = discover_rack_app(route.app)
 
@@ -115,12 +116,14 @@ module ApiTaster
 
       def normalise_route(route, path_prefix = nil)
         route.verb.source.split('|').map do |verb|
+          path = path_prefix.to_s + route.path.spec.to_s.sub('(.:format)', '')
           {
-            :id   => @_route_counter+=1,
-            :name => route.name,
-            :verb => verb.gsub(/[$^]/, ''),
-            :path => path_prefix.to_s + route.path.spec.to_s.sub('(.:format)', ''),
-            :reqs => route.requirements
+            :id        => @_route_counter+=1,
+            :name      => route.name,
+            :verb      => verb.gsub(/[$^]/, ''),
+            :path      => path,
+            :full_path => rails_url_root + path,
+            :reqs      => route.requirements
           }
         end
       end
@@ -129,12 +132,22 @@ module ApiTaster
         url_param_keys = route[:path].scan /:\w+/
 
         url_params  = input.reject { |k, v| ! ":#{k}".in?(url_param_keys) }
-        post_params = input.diff(url_params)
+        post_params = hash_diff(input, url_params)
 
         {
           :url_params  => url_params,
           :post_params => post_params
         }
+      end
+
+      def hash_diff(h1, h2)
+        h1.dup.delete_if do |k, v|
+          h2[k] == v
+        end.merge!(h2.dup.delete_if { |k, v| h1.has_key?(k) })
+      end
+
+      def rails_url_root
+        ActionController::Base.relative_url_root.to_s.chomp('/')
       end
     end
   end

@@ -15,9 +15,10 @@ module ApiTaster
         :name => 'home',
         :verb => 'GET',
         :path => '/home',
+        :full_path => '/home',
         :reqs => {
-          :controller => 'application',
-          :action => 'home'
+          :action => 'home',
+          :controller => 'application'
         }
       }
     end
@@ -32,6 +33,9 @@ module ApiTaster
         end
         mount Rails.application => '/app'
         mount proc {} => '/rack_app'
+
+        get 'rails/info/properties' => 'rails/info#properties', :as => :rails_info_properties
+        get '/' => 'rails/welcome#index'
       end
 
       Rails.application.stub(:routes).and_return(routes)
